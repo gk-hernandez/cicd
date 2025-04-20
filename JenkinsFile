@@ -1,0 +1,48 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git credentialsId: 'your-github-credentials-id', url: 'your-github-repository-url'
+            }
+        }
+        stage('Build') {
+            steps {
+                script {
+                    echo 'Setting up Python environment'
+                    sh 'python3 -m venv venv'
+                    sh 'source venv/bin/activate'
+                    echo 'Installing dependencies'
+                    sh 'pip install -r requirements.txt'
+                }
+            }
+        }
+        stage('Test') {
+            steps {
+                script {
+                    echo 'Running unit tests'
+                    sh 'source venv/bin/activate'
+                    sh 'python -m unittest test_app.py'
+                }
+            }
+        }
+        stage('Deploy to AWS Elastic Beanstalk') {
+            steps {
+                script {
+                    echo 'Deploying to AWS Elastic Beanstalk'
+                    // You'll need the AWS CLI configured on your Jenkins server
+                    // and the Elastic Beanstalk CLI (eb) installed.
+                    // Replace 'your-elastic-beanstalk-application-name' and
+                    // 'your-elastic-beanstalk-environment-name' with your actual names.
+                    sh 'source venv/bin/activate'
+                    sh 'zip -r python-app.zip *' // Package the application
+                    sh 'aws s3 cp python-app.zip s3://your-s3-bucket-for-eb-artifacts/python-app.zip'
+                    sh "aws elasticbeanstalk create-application-version --application-name your-elastic-beanstalk-application-name --version-label v$BUILD_NUMBER --source-bundle S3Bucket=your-s3-bucket-for-eb-artifacts,S3Key=python-app.zip"
+                    sh "aws elasticbeanstalk update-environment --application-name your-elastic-beanstalk-application-name --environment-name your-elastic-beanstalk-environment-name --version-label v$BUILD_NUMBER"
+                    echo 'Deployment to Elastic Beanstalk initiated'
+                }
+            }
+        }
+    }
+}
